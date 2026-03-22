@@ -1,0 +1,214 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The LLM Council</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f5; min-height: 100vh; padding: 2rem 1rem; color: #111; }
+    .app { max-width: 960px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 2.5rem; }
+    .header-badge { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; padding: 4px 14px; border-radius: 20px; border: 1px solid #ddd; color: #888; background: #fff; margin-bottom: 14px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+    .header h1 { font-size: 32px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.5px; }
+    .header p { font-size: 15px; color: #888; }
+    .input-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .pill { font-size: 13px; padding: 6px 18px; border-radius: 20px; cursor: pointer; border: 1px solid #ddd; background: #f5f5f5; color: #666; font-weight: 400; transition: all 0.15s; user-select: none; }
+    .pill.active { border: 1.5px solid #222; background: #fff; color: #111; font-weight: 500; }
+    textarea { width: 100%; font-size: 14px; padding: 12px 14px; border-radius: 10px; border: 1px solid #ddd; resize: none; font-family: inherit; line-height: 1.6; margin-bottom: 12px; background: #fafafa; outline: none; }
+    textarea:focus { border-color: #aaa; background: #fff; }
+    .error-box { font-size: 12px; color: #c0392b; font-family: monospace; padding: 10px 14px; background: #fdf0ef; border-radius: 8px; margin-bottom: 12px; display: none; word-break: break-all; }
+    .run-btn { width: 100%; padding: 12px; font-size: 14px; font-weight: 500; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer; color: #111; }
+    .run-btn:hover:not(:disabled) { background: #f5f5f5; }
+    .run-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 1.5rem; }
+    .model-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 14px; padding: 1.1rem; position: relative; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .model-card.winner { border-width: 2px; }
+    .winner-badge { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 700; padding: 3px 14px; border-radius: 20px; color: #fff; white-space: nowrap; letter-spacing: 0.08em; }
+    .card-header { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
+    .card-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .card-name { font-size: 13px; font-weight: 500; }
+    .card-sub { font-size: 11px; color: #aaa; }
+    .card-body { font-size: 13px; line-height: 1.65; color: #333; white-space: pre-wrap; min-height: 60px; }
+    .card-body.waiting { color: #bbb; font-style: italic; }
+    .verdict-card { background: #fff; border: 2px solid #ddd; border-radius: 14px; padding: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .verdict-label { font-size: 10px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
+    .scores-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .scores-table th { text-align: center; font-weight: 500; font-size: 12px; padding: 4px 0 10px; color: #aaa; }
+    .scores-table th.dim-col { text-align: left; width: 32%; }
+    .scores-table td { padding: 6px 0; border-top: 1px solid #f2f2f2; text-align: center; }
+    .scores-table td.dim-name { text-align: left; color: #555; }
+    .scores-table tr.total-row td { padding-top: 10px; border-top: 1px solid #e5e5e5; }
+    .score-pill { display: inline-block; min-width: 42px; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; text-align: center; }
+    .pill-green { background: #EAF3DE; color: #27500A; }
+    .pill-yellow { background: #FAEEDA; color: #633806; }
+    .pill-red { background: #FCEBEB; color: #791F1F; }
+    .empty-state { text-align: center; padding: 4rem 1rem; color: #bbb; font-size: 14px; }
+    @media (max-width: 640px) { .cards-grid { grid-template-columns: 1fr; } .header h1 { font-size: 24px; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-badge">
+      <span class="dot" style="background:#D97757"></span>
+      <span class="dot" style="background:#4285F4"></span>
+      <span class="dot" style="background:#F55036"></span>
+      Claude · Gemini 2.0 · Llama 3
+    </div>
+    <h1>The LLM Council</h1>
+    <p>One prompt. Three AI models. One verdict.</p>
+  </div>
+
+  <div class="input-card">
+    <div class="pills">
+      <div class="pill active" data-task="Search"    onclick="selectPill(this)">Search</div>
+      <div class="pill"        data-task="Summarize" onclick="selectPill(this)">Summarize</div>
+      <div class="pill"        data-task="Analyze"   onclick="selectPill(this)">Analyze</div>
+      <div class="pill"        data-task="Explain"   onclick="selectPill(this)">Explain</div>
+    </div>
+    <textarea id="promptInput" rows="3" placeholder="Type your prompt... e.g. What are the top IT service companies in Brazil?"></textarea>
+    <div class="error-box" id="errorBox"></div>
+    <button class="run-btn" id="runBtn" onclick="runCouncil()">Convene the Council ↗</button>
+  </div>
+
+  <div id="outputArea">
+    <div class="empty-state">Enter a prompt above to see the council in action</div>
+  </div>
+</div>
+
+<script>
+  const PROXY  = "https://llmcouncil.ayan612012.workers.dev";
+  const MODELS = [
+    { name:"Claude",  sub:"Anthropic · Haiku",  color:"#D97757", endpoint:"/claude" },
+    { name:"Gemini",  sub:"Google · 2.0 Flash", color:"#4285F4", endpoint:"/gemini" },
+    { name:"Llama 3", sub:"Meta · via Groq",    color:"#F55036", endpoint:"/groq"   },
+  ];
+  const DIMS     = ["clarity","completeness","tone_match","actionability","originality"];
+  const DIM_LBLS = ["Clarity","Completeness","Tone match","Actionability","Originality"];
+  let activeTask = "Search";
+
+  function selectPill(el) {
+    document.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
+    el.classList.add("active");
+    activeTask = el.dataset.task;
+  }
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function pillClass(v) {
+    return v >= 8 ? "pill-green" : v >= 6 ? "pill-yellow" : "pill-red";
+  }
+
+  function getWinnerIdx(scores) {
+    const totals = scores.map(s => DIMS.reduce((a,d) => a+(parseFloat(s[d])||0), 0));
+    return totals.indexOf(Math.max(...totals));
+  }
+
+  async function callProxy(endpoint, system, message, retries=3) {
+    for (let i=0; i<retries; i++) {
+      try {
+        const res = await fetch(`${PROXY}${endpoint}`, {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ system, messages:[{role:"user",content:message}], max_tokens:600 })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        return data.text || "";
+      } catch(e) {
+        if (i===retries-1) throw e;
+        await sleep(1500*(i+1));
+      }
+    }
+  }
+
+  function renderCards(responses, winnerIdx) {
+    return `<div class="cards-grid">${MODELS.map((m,i) => {
+      const isW = winnerIdx === i;
+      const resp = responses?.[i];
+      return `<div class="model-card${isW?" winner":""}" style="${isW?`border-color:${m.color};background:${m.color}10`:""}">
+        ${isW?`<div class="winner-badge" style="background:${m.color}">✦ WINNER</div>`:""}
+        <div class="card-header">
+          <div class="card-dot" style="background:${m.color}"></div>
+          <div><div class="card-name" style="${isW?`color:${m.color}`:""}">${m.name}</div><div class="card-sub">${m.sub}</div></div>
+        </div>
+        <div class="card-body${resp?"":" waiting"}">${resp||"Waiting for response..."}</div>
+      </div>`;
+    }).join("")}</div>`;
+  }
+
+  function renderVerdict(scores, winnerIdx) {
+    const w = MODELS[winnerIdx];
+    const heads = MODELS.map((m,i) =>
+      `<th style="color:${i===winnerIdx?m.color:"#aaa"};font-weight:${i===winnerIdx?600:500}">${m.name}${i===winnerIdx?" 🏆":""}</th>`
+    ).join("");
+    const rows = DIMS.map((d,di) => {
+      const cells = scores.map((s,si) => {
+        const v = parseFloat(s[d]||0); const isW = si===winnerIdx;
+        return `<td><span class="score-pill${isW?" ":"  "}${isW?"":""+pillClass(v)}" style="${isW?`background:${MODELS[si].color};color:#fff`:""}">${v.toFixed(1)}</span></td>`;
+      }).join("");
+      return `<tr><td class="dim-name">${DIM_LBLS[di]}</td>${cells}</tr>`;
+    }).join("");
+    const totals = scores.map((s,si) => {
+      const t = DIMS.reduce((a,d)=>a+(parseFloat(s[d])||0),0); const isW=si===winnerIdx;
+      return `<td><span class="score-pill" style="${isW?`background:${MODELS[si].color};color:#fff`:`background:${t/DIMS.length>=8?"#EAF3DE":t/DIMS.length>=6?"#FAEEDA":"#FCEBEB"};color:${t/DIMS.length>=8?"#27500A":t/DIMS.length>=6?"#633806":"#791F1F"}`}">${t.toFixed(1)}</span></td>`;
+    }).join("");
+    return `<div class="verdict-card" style="border-color:${w.color}55">
+      <div class="verdict-label">Council verdict · Winner: <span style="color:${w.color};font-weight:700">${w.name}</span></div>
+      <table class="scores-table">
+        <thead><tr><th class="dim-col">Dimension</th>${heads}</tr></thead>
+        <tbody>${rows}<tr class="total-row"><td class="dim-name" style="color:#aaa;font-size:12px">Total /50</td>${totals}</tr></tbody>
+      </table>
+    </div>`;
+  }
+
+  async function runCouncil() {
+    const prompt = document.getElementById("promptInput").value.trim();
+    if (!prompt) return;
+    const btn = document.getElementById("runBtn");
+    const err = document.getElementById("errorBox");
+    err.style.display = "none";
+    btn.disabled = true;
+    btn.textContent = "Querying Claude, Gemini & Llama 3...";
+    document.getElementById("outputArea").innerHTML = renderCards(null, null);
+
+    const sys = [
+      `You are a helpful AI. Respond in a structured, data-driven, precise style. Use bullet points. Task: ${activeTask}.`,
+      `You are a helpful AI. Respond in a warm, clear, conversational style. Task: ${activeTask}.`,
+      `You are a helpful AI. Respond with bold, big-picture thinking. Be opinionated. Task: ${activeTask}.`,
+    ];
+
+    try {
+      const results = await Promise.all(MODELS.map((m,i) => callProxy(m.endpoint, sys[i], prompt)));
+      document.getElementById("outputArea").innerHTML = renderCards(results, null);
+      btn.textContent = "Claude is judging...";
+      await sleep(800);
+
+      const judgePrompt = `Prompt answered by 3 AI models.
+PROMPT: "${prompt}" TASK: ${activeTask}
+A (Claude): ${results[0]}
+B (Gemini): ${results[1]}
+C (Llama 3): ${results[2]}
+Score each: clarity, completeness, tone_match, actionability, originality (1 decimal).
+Return ONLY raw JSON: {"scores":[{"clarity":8.5,"completeness":7.0,"tone_match":9.2,"actionability":8.1,"originality":7.3},{"clarity":9.0,"completeness":8.5,"tone_match":8.2,"actionability":7.8,"originality":8.0},{"clarity":7.2,"completeness":8.0,"tone_match":7.5,"actionability":9.1,"originality":9.3}]}`;
+
+      const raw = await callProxy("/claude","You output only raw JSON. No markdown. No backticks.",judgePrompt);
+      const parsed = JSON.parse(raw.replace(/```json|```/g,"").trim());
+      const winnerIdx = getWinnerIdx(parsed.scores);
+      document.getElementById("outputArea").innerHTML = renderCards(results, winnerIdx) + renderVerdict(parsed.scores, winnerIdx);
+    } catch(e) {
+      err.textContent = "Error: " + e.message;
+      err.style.display = "block";
+      document.getElementById("outputArea").innerHTML = `<div class="empty-state">Something went wrong — see error above.</div>`;
+    }
+    btn.disabled = false;
+    btn.textContent = "Convene the Council ↗";
+  }
+</script>
+</body>
+</html>
